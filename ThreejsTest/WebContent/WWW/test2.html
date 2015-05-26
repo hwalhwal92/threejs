@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+
+<meta name="viewport"
+	content="width=device-width, user-scalable=yes,
+ minimum-scale=1.0, maximum-scale=1.0">
+<title>Insert title here</title>
+
+<script src="js/three.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/Stats.js"></script>
+
+
+
+
+
+<!-- <script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r68/three.js"></script> -->
+<style>
+* {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	overflow: hidden;
+}
+</style>
+
+<script>
+	// 전역변수 선언
+	var width, height, renderer, scene, camera, container, clock, controls, stats;
+
+	/* 
+	객체들이 있을 화면, 객체를 보는 화면, 객체, 객체를 비추는 불빛 
+	Scene, Camera, Mesh, Light 객체가 필요합니다.
+	 */
+
+	//////////////////////////////////////////////////////////////////////////
+	function init() {
+
+		width = window.innerWidth; // 브라우저 가로폭
+		height = window.innerHeight; // 브라우저 세로폭
+
+		// Renderer 객체 생성
+		renderer = new THREE.WebGLRenderer({
+			antialias : true
+		});
+		//	renderer = new THREE.CanvasRenderer ;
+		renderer.setSize(width, height);
+		container = document.getElementById('ThreeJS');
+		container.appendChild(renderer.domElement);
+
+		/* 		renderer = new THREE.CanvasRenderer();
+		 renderer.setSize(width, height);
+		 document.body.appendChild(renderer.domElement);
+		 */
+
+		// Scene 객체 생성
+		scene = new THREE.Scene();
+
+		// Camera 객체 생성
+		var angle = 45; // 시야각
+		var aspect = width / height; //화면 비율 width / height 표현식 사용
+		var near = 0.1; // near , far 얼마나 멀리있는 물체까지 볼것인가
+		var far = 20000;
+
+		camera = new THREE.PerspectiveCamera(angle, aspect, near, far);
+
+		//camera = 
+		//	new THREE.OrthographicCamera(-width/2, width/2,-height/2 ,height/2, near, far)
+
+		// 카메라 위치 설정
+		camera.position.set(0, 150, 400);
+
+		// 카메라를 항상 장면의 중앙...이 아니네
+		//camera.lookAt(new THREE.Vector3(0, 0, 0));
+		camera.lookAt(scene.position);
+		scene.add(camera);
+
+		clock = new THREE.Clock();
+
+		// 카메라컨트롤 라이브러리
+		controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+		//프레임 상태 정보바
+		stats = new Stats();
+		stats.domElement.style.position = 'absolute';
+		stats.domElement.style.bottom = '0px';
+		stats.domElement.style.zIndex = 100;
+
+		container.appendChild(stats.domElement);
+
+		// Light 객체 생성
+		var light = new THREE.PointLight();
+		light.position.set(100, 100, 300);
+		scene.add(light);
+
+	}
+
+	function geo2line(geo) {
+		var geometry = new THREE.Geometry();
+		var vertices = geometry.vertices;
+
+		for (i = 0; i < geo.faces.length; i++) {
+
+			var face = geo.faces[i];
+
+			if (face instanceof THREE.Face3) {
+				var a = geo.vertices[face.a].clone();
+				var b = geo.vertices[face.b].clone();
+				var c = geo.vertices[face.c].clone();
+
+				vertices.push(a, b, b, c, c, a)
+			} else if (face instanceof THREE.Face4) {
+				var a = geo.vertices[face.a].clone();
+				var b = geo.vertices[face.b].clone();
+				var c = geo.vertices[face.c].clone();
+				var d = geo.vertices[face.d].clone();
+				vertices.push(a, b, b, c, c, d, d, a)
+			}
+		}
+		geometry.computeLineDistances();
+		return geometry;
+	}
+
+	//애니메이션 수행
+
+	//Mesh 객체 회전
+	//mesh.rotation.x += 0.02;
+	//mesh.rotation.y += 0.02;
+	//mesh.rotation.z += 0.02; 
+
+	window.addEventListener('load',
+			function() {
+
+				// 초기화
+				init();
+				animate();
+
+				// 바닥 객체를 텍스쳐 이미지를 로드하여 생성
+
+				//THREE.ImageUtils.crossOrigin = '';
+
+				/* var url ='img/wood_texture3809.jpg';
+				
+				var image = document.createElement('img');
+				image.crossOrigin='';
+				image.src=url; */
+				//		var floorTexture = new THREE.Texture(image);
+				var floorTexture = THREE.ImageUtils
+						.loadTexture('img/laminate_1_2.jpg');
+
+				floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
+
+				//THREE.RepeatWrapping​ 라이브러리의 
+				//메소드 repeat을 사용해서 바둑판 배열 효과를 사용할 수 있습니다. 괄호숫자 높으면 촘촘. ​​
+				floorTexture.repeat.set(10, 10);
+				//		  floorTexture.needsUpdate = true;
+
+				// 바닥 재질 생성
+
+				var floorMaterial = new THREE.MeshBasicMaterial({
+					map : floorTexture,
+					side : THREE.DoubleSide
+				});
+
+				// 바닥 형상 생성(x,y,가로줄,세로줄)
+				var floorGeometry = new THREE.PlaneGeometry(50, 100, 50, 100);
+
+				// mesh 라이브러리를 불러와 바닥형상,바닥재질을 조합하여 바닥오브젝트 생성
+				var floor = new THREE.Mesh(floorGeometry, floorMaterial);
+
+				// 바닥 위치 설정
+				floor.position.y = 2.5;
+
+				// 바닥방향
+				floor.rotation.x = Math.PI / 2;
+
+				scene.add(floor);
+
+				var width = 120 , height = 40 , radius = 5;
+
+				var shape = new THREE.Shape();
+				shape.moveTo(-width / 2 + radius, height / 2);
+				shape.lineTo(width / 2 - radius, height / 2);
+				shape.lineTo(width / 2, height / 2 - radius);
+				shape.lineTo(width / 2, -height / 2 + radius);
+				shape.lineTo(width / 2 - radius, -height / 2);
+				shape.lineTo(-width / 2 + radius, -height / 2);
+				shape.lineTo(-width / 2, -height / 2 + radius);
+				shape.lineTo(-width / 2, height / 2 - radius);
+				shape.lineTo(-width / 2 + radius, height / 2);
+
+				var rectGeom = new THREE.ShapeGeometry(shape);
+				var rectMesh = new THREE.Mesh(rectGeom,
+						new THREE.MeshBasicMaterial({
+							color : 0xff0000
+						}));
+
+				scene.add(rectMesh);
+
+				//스카이박스 , 바탕화면
+				var skyBoxGeometry = new THREE.BoxGeometry(500, 500, 500);
+
+				// 큐브지오매트리 라이브러리를 설정을 통해 배경화면처럼 사용
+
+				var skyBoxMaterial = new THREE.MeshBasicMaterial({
+					color : 0x9999ff,
+					side : THREE.BackSide
+				});
+
+				var skyBox = new THREE.Mesh(skyBoxGeometry, skyBoxMaterial);
+
+				skyBox.position.y = 240;
+				scene.add(skyBox);
+				/* 
+				 var cubeGeometry = new THREE.CubeGeometry(50,50,50);
+				 var dashMaterial = 
+				 new THREE.LineDashedMaterial({color:0x0000},dashSize:2,gapSize:3});
+				 */
+				var boxGeometry = new THREE.BoxGeometry(50, 50, 50);
+				var dashMaterial = new THREE.LineDashedMaterial({
+					color : 0x000000,
+					dashSize : 2,
+					gapSize : 3
+				});
+
+				cube = new THREE.Line(geo2line(boxGeometry), dashMaterial,
+						THREE.LinePieces);
+
+				cube.position.set(50, 26, 0)
+				scene.add(cube);
+
+				//Mesh 객체를 위한 보조 객체를 생성
+				var geometry = new THREE.SphereGeometry(10, 10, 100)
+				var material = new THREE.MeshLambertMaterial({
+					color : 0xaabbee
+				});
+
+				// 라인 보조 객체
+				var lineMaterial = new THREE.LineBasicMaterial({
+					color : 0x0000ff
+				});
+
+				var lineGeometry = new THREE.Geometry();
+				lineGeometry.vertices.push(new THREE.Vector3(-100, 30, 150),
+						new THREE.Vector3(0, 30, 0),
+						new THREE.Vector3(70, 0, 0), new THREE.Vector3(0, 0,
+								150), new THREE.Vector3(-100, 30, 150));
+
+				lineGeometry.computeLineDistances();
+
+				// 라인 객체 생성
+				var line = new THREE.Line(lineGeometry, lineMaterial);
+				scene.add(line);
+
+				//Mesh 객체를 생성
+				var mesh = new THREE.Mesh(geometry, material);
+				//scene.add(mesh);
+
+				//scene.add(new THREE.AxisHelper(100));
+				scene.add(new THREE.GridHelper(150, 10));
+
+				function animate() {
+					requestAnimationFrame(animate);
+					controls.update();
+					stats.update();
+					renderer.render(scene, camera);
+				}
+			});
+</script>
+
+
+
+
+</head>
+<body>
+	<div id="ThreeJS" style="position: absolute; left: 0px; top: 0px"></div>
+</body>
+</html>
